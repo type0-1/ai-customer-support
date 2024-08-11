@@ -27,41 +27,33 @@ export async function POST(req) {
     const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
     });
+    const data = await req.json();
+    
 
-    try {
-        const data = await req.json();
+    const completion = await openai.chat.completions.create({
+        messages: [{role: 'system', content: systemPrompt}, ...data],
+        model: 'gpt-4o',
+        stream: true,
+    });
 
-        const completion = await openai.chat.completions.create({
-            messages: [{role: 'system', content: systemPrompt}, ...data],
-            model: 'gpt-4',  // Correct model name here
-            stream: true,
-        });
+    const stream = new ReadableStream({
+        async start(controller) {
+            const encoder = new TextEncoder();
 
-        const stream = new ReadableStream({
-            async start(controller) {
-                const encoder = new TextEncoder();
-
-                try {
-                    for await (const chunk of completion) {
-                        const content = chunk.choices[0]?.delta?.content;
-                        if (content) {
-                            const text = encoder.encode(content);
-                            controller.enqueue(text);
-                        }
+            try {
+                for await(const chunk of completion) {
+                    const content = chunk.choices[0]?.delta?.content;
+                    if(content) {
+                        const text = encoder.encode(content);
+                        controller.enqueue(text);
                     }
-                } catch (error) {
-                    console.error("Error streaming response:", error);
-                    controller.error(error);
-                } finally {
-                    controller.close();
                 }
-            },
-        });
-
-        return new NextResponse(stream);
-
-    } catch (error) {
-        console.error("Error handling request:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-    }
+            } catch (error) {
+                console.error(error);
+            } finally {
+                controller.close();
+            }
+        },
+    });
+    return new NextResponse(stream);
 }
