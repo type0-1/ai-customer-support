@@ -24,7 +24,9 @@ const systemPrompt =
 Your goal is to make the user's experience as smooth and satisfactory as possible.`;
 
 export async function POST(req) {
-    const openai = new OpenAI();
+    const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+    });
     const data = await req.json();
     
 
